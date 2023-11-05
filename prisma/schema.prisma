@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"] // Enable the postgresqlExtensions. Currently in preview
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// tables
+
+// users
+model user {
+  id String @id @unique // auth0
+  email String @unique // auth0
+  name String?
+
+  // Join
+  file    file[]
+  sources sources[]
+  message message[]
+}
+
+// Source status
+enum status {
+  PENDING
+  PROCESSING
+  FAILED
+  SUCCESS
+}
+
+enum sourceType {
+  TXT
+  PDF
+}
+
+// files
+model file {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map(name: "created_at")
+  status    status   @default(PENDING)
+
+  name  String?
+  type  sourceType @default(PDF)
+  chars Int?
+  size  Int
+  url   String     @unique
+
+  // Join
+  sources sources[]
+  message message[]
+
+  user   user?  @relation(fields: [userId], references: [id])
+  userId String @map(name: "user_id")
+}
+
+// sources
+model sources {
+  id      String                 @id @default(cuid())
+  content String
+  vector  Unsupported("vector")?
+
+  // Join
+  user   user?  @relation(fields: [userId], references: [id])
+  userId String @map(name: "user_id")
+  file   file?  @relation(fields: [fileId], references: [id])
+  fileId String @map(name: "file_id")
+}
+
+enum messageRole {
+  USER
+  ASSISTANT
+}
+
+// messages
+model message {
+  id   String @id @default(cuid())
+  text String @db.Text()
+
+  role messageRole
+
+  createdAt DateTime @default(now()) @map(name: "created_at")
+  updatedAt DateTime @updatedAt @map(name: "updated_at")
+
+  // Join
+  user   user?   @relation(fields: [userId], references: [id])
+  userId String? @map(name: "user_id")
+  file   file?   @relation(fields: [fileId], references: [id])
+  fileId String? @map(name: "file_id")
+}
